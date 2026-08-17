@@ -67,7 +67,7 @@ function initDust(canvas) {
       vx: (Math.random() - 0.5) * 0.12,
       phase: Math.random() * Math.PI * 2,
       speed: 0.004 + Math.random() * 0.012,
-      warm: Math.random() > 0.25,
+      warm: Math.random() > 0.22,
     };
   }
 
@@ -86,10 +86,10 @@ function initDust(canvas) {
         continue;
       }
       const twinkle = 0.35 + 0.4 * (0.5 + 0.5 * Math.sin(t * p.speed * 2 + p.phase * 3));
-      const alpha = p.warm ? twinkle * 0.7 : twinkle * 0.4;
+      const alpha = p.warm ? twinkle * 0.75 : twinkle * 0.5;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.warm ? `rgba(255, 203, 130, ${alpha})` : `rgba(242, 229, 207, ${alpha})`;
+      ctx.fillStyle = p.warm ? `rgba(252, 224, 160, ${alpha})` : `rgba(185, 163, 216, ${alpha})`;
       ctx.fill();
     }
     raf = requestAnimationFrame(draw);
@@ -106,6 +106,35 @@ function initDust(canvas) {
   raf = requestAnimationFrame(tick);
 
   return () => cancelAnimationFrame(raf);
+}
+
+/* ---------------- 星空 ---------------- */
+function initStars(container) {
+  if (!container) return;
+  const frag = document.createDocumentFragment();
+  const count = 46;
+  for (let i = 0; i < count; i++) {
+    const s = document.createElement("i");
+    s.className = "star";
+    const size = Math.random() < 0.16 ? 2.4 + Math.random() * 1.8 : 1 + Math.random() * 1.5;
+    s.style.left = `${(Math.random() * 100).toFixed(2)}%`;
+    s.style.top = `${(Math.random() * 60).toFixed(2)}%`;
+    s.style.width = `${size.toFixed(1)}px`;
+    s.style.height = `${size.toFixed(1)}px`;
+    s.style.opacity = (0.25 + Math.random() * 0.6).toFixed(2);
+    s.style.animationDelay = `${(Math.random() * 6).toFixed(2)}s`;
+    s.style.animationDuration = `${(3 + Math.random() * 5).toFixed(2)}s`;
+    frag.appendChild(s);
+  }
+  for (let i = 0; i < 4; i++) {
+    const sp = document.createElement("i");
+    sp.className = "star sparkle";
+    sp.style.left = `${(5 + Math.random() * 85).toFixed(1)}%`;
+    sp.style.top = `${(4 + Math.random() * 42).toFixed(1)}%`;
+    sp.style.animationDelay = `${(Math.random() * 4).toFixed(2)}s`;
+    frag.appendChild(sp);
+  }
+  container.appendChild(frag);
 }
 
 /* ---------------- Toast ---------------- */
@@ -249,5 +278,8 @@ el.soundToggle.addEventListener("click", () => {
 });
 
 /* ---------------- 启动 ---------------- */
-if (!reducedMotion) initDust(el.dust);
+if (!reducedMotion) {
+  initDust(el.dust);
+  initStars($("#stars"));
+}
 setSoundIcon(false);
