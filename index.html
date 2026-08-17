@@ -27,6 +27,7 @@
       </span>
       <span class="brand-name">树洞诗集</span>
     </div>
+    <button id="manage-btn" class="manage-entry" type="button" title="诗库管理">✎ 诗库</button>
     <button id="sound-toggle" class="icon-btn" type="button" aria-label="开启环境音" title="环境音">
       <svg id="icon-sound-off" viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
         <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
@@ -87,6 +88,33 @@
         </button>
       </div>
       <p class="poem-hint">点一下画面，让诗散开</p>
+    </section>
+
+    <!-- 诗库管理 -->
+    <section id="manage" class="manage-view hidden" aria-hidden="true">
+      <div class="manage-head">
+        <button id="manage-back" class="m-back" type="button">← 返回</button>
+        <h2 class="manage-title">诗库管理</h2>
+        <span id="manage-save-hint" class="manage-save-hint"></span>
+      </div>
+      <p class="manage-tip">在这里增删改诗：改动自动保存在「本机浏览器」，刷新后依然生效；点「导出」可拿回完整的 poems.js，点「发布」可提交到 GitHub 让全站更新。</p>
+      <div class="manage-toolbar">
+        <button id="manage-export" class="m-btn" type="button">导出 poems.js</button>
+        <button id="manage-reset" class="m-btn ghost" type="button">恢复内置诗库</button>
+      </div>
+      <details class="manage-pub">
+        <summary>发布到 GitHub（可选）</summary>
+        <div class="manage-pub-body">
+          <label class="m-field">仓库 <input id="manage-repo" type="text" value="ElaineCai216/treehole-poetry"></label>
+          <label class="m-field">Token <input id="manage-token" type="password" placeholder="fine-grained token（仅本仓库读写）"></label>
+          <div class="manage-pub-actions">
+            <button id="manage-publish" class="m-btn" type="button">发布到 GitHub</button>
+            <button id="manage-clear-token" class="m-btn ghost" type="button">清除 Token</button>
+            <span id="manage-pub-status" class="manage-pub-status"></span>
+          </div>
+        </div>
+      </details>
+      <div id="manage-list" class="manage-list"></div>
     </section>
   </main>
 

@@ -1,11 +1,12 @@
 // 树洞诗集 · 主入口
 import "./style.css";
 import { detectMood } from "./mood.js";
-import { randomPoem, randomPoemExcept } from "./poems.js";
+import { pickPoem } from "./poemStore.js";
 import { renderPoem, scatterPoem, estimateAppearDuration, TIMING } from "./scatter.js";
 import * as audio from "./audio.js";
 import { generatePoem, isAiConfigured } from "./api.js";
 import { initInk } from "./ink.js";
+import { initManage } from "./manage.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -32,6 +33,8 @@ const el = {
 };
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+let manageOpen = false;
 
 const state = {
   view: "home", // "home" | "poem"
@@ -187,7 +190,7 @@ el.form.addEventListener("submit", (e) => {
   state.moodText = text;
   const mood = detectMood(text);
   state.emotion = mood.emotion;
-  const poem = randomPoem(state.emotion === "unknown" ? undefined : state.emotion);
+  const poem = pickPoem(state.emotion === "unknown" ? undefined : state.emotion);
   el.input.value = "";
 
   setTimeout(() => {
@@ -199,6 +202,7 @@ el.form.addEventListener("submit", (e) => {
 
 // 点画面任意处提前散开（按钮通过 stopPropagation 交给自己）
 document.addEventListener("click", (e) => {
+  if (manageOpen) return;
   if (state.view !== "poem" || state.scattering || state.aiLoading) return;
   if (e.target.closest(".actions")) return;
   scatterAndReturn();
@@ -208,7 +212,7 @@ el.againBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   if (state.view !== "poem" || state.scattering || state.aiLoading) return;
   audio.sfxAgain();
-  const poem = randomPoemExcept(state.emotion === "unknown" ? undefined : state.emotion, state.currentPoem);
+  const poem = pickPoem(state.emotion === "unknown" ? undefined : state.emotion, state.currentPoem);
   showPoem(poem, { source: "local" });
 });
 
@@ -245,6 +249,7 @@ el.aiBtn.addEventListener("click", async (e) => {
 
 // Esc 也可提前散开
 document.addEventListener("keydown", (e) => {
+  if (manageOpen) return;
   if (e.key === "Escape" && state.view === "poem" && !state.scattering) {
     scatterAndReturn();
   }
@@ -291,6 +296,14 @@ el.soundToggle.addEventListener("click", () => {
 });
 
 /* ---------------- 启动 ---------------- */
+initManage({
+  onOpen: () => {
+    manageOpen = true;
+  },
+  onClose: () => {
+    manageOpen = false;
+  },
+});
 initInk(el.ink, { reducedMotion });
 if (!reducedMotion) initDust(el.dust);
 wireSfx();
