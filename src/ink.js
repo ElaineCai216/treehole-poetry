@@ -221,10 +221,9 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
       x,
       y,
       size: rand(10, 26),
-      vy: rand(0.1, 0.3),
-      vx: (Math.random() - 0.5) * 0.06,
+      vy: rand(0.35, 0.75),
+      vx: (Math.random() - 0.5) * 0.08,
       rot: rand(0, Math.PI * 2),
-      vr: (Math.random() - 0.5) * 0.0016,
       phase: rand(0, Math.PI * 2),
       alpha: rand(0.34, 0.62),
       color: Math.random() < 0.7 ? INK : GOLD,
@@ -233,9 +232,10 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
   }
 
   function drawDoodle(d, t) {
+    const bob = Math.sin(t * 0.00025 + d.phase) * 0.6; // 极缓浮动，纯平移
     ctx.save();
-    ctx.translate(d.x, d.y);
-    ctx.rotate(d.rot + Math.sin(t * 0.0004 + d.phase) * 0.05);
+    ctx.translate(d.x, d.y + bob);
+    ctx.rotate(d.rot);
     ctx.globalAlpha = d.alpha;
     ctx.strokeStyle = d.color;
     ctx.fillStyle = d.color;
@@ -323,7 +323,6 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
       if (!reducedMotion) {
         d.y -= d.vy;
         d.x += d.vx;
-        d.rot += d.vr;
         // 弹走：不进入中央禁区
         if (d.x > keepOut.x0 && d.x < keepOut.x1 && d.y > keepOut.y0 && d.y < keepOut.y1) {
           const fromLeft = d.x < (keepOut.x0 + keepOut.x1) / 2;
