@@ -5,14 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>树洞诗集</title>
   <meta name="description" content="输入一句今天的心情，让树洞为你写一首小诗。">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%2326104a'/%3E%3Cpath d='M50 16 L58 42 L84 50 L58 58 L50 84 L42 58 L16 50 L42 42 Z' fill='%23f6ecc4'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%23f6e3b4'/%3E%3Cpath d='M50 16 L58 42 L84 50 L58 58 L50 84 L42 58 L16 50 L42 42 Z' fill='%23d99a3f'/%3E%3C/svg%3E">
   <script type="module" src="/src/main.js"></script>
 </head>
 <body>
-  <!-- 绘本插画背景（JS 填充并按时间轮换） -->
-  <div id="bg" aria-hidden="true"></div>
-  <!-- 暗角柔光：保证文字与背景的区分度 -->
-  <div id="scrim" aria-hidden="true"></div>
+  <!-- 会动的手绘泼墨涂鸦背景 -->
+  <canvas id="ink" aria-hidden="true"></canvas>
 
   <canvas id="dust" aria-hidden="true"></canvas>
   <div id="grain" aria-hidden="true"></div>
@@ -42,14 +40,11 @@
   </header>
 
   <main id="app">
-    <!-- 首页：一封写满心情的信 + 点蜡烛寄出 -->
+    <!-- 首页：随手勾了个框，把心事写进去 -->
     <section id="home" class="view">
       <div class="home-inner">
         <p class="tagline">把今天的心情，写进树洞</p>
-        <div class="letter" id="letter">
-          <div class="tape tape-1" aria-hidden="true"></div>
-          <div class="tape tape-2" aria-hidden="true"></div>
-          <p class="letter-title">今天的心情</p>
+        <div class="sketch-frame" id="sketch">
           <form id="poem-form" class="poem-form" autocomplete="off">
             <input
               id="mood-input"
@@ -61,18 +56,15 @@
             >
             <button id="candle-btn" class="candle" type="submit" aria-label="点蜡烛，寄出心事" title="点蜡烛寄出（或按回车）">
               <svg viewBox="0 0 64 96" width="40" height="60" fill="none" aria-hidden="true">
-                <!-- 火焰 -->
-                <path class="flame" d="M32 8 C 38 18, 46 24, 42 36 C 39 44, 25 44, 22 36 C 18 24, 26 18, 32 8 Z" fill="#ffd98a"/>
-                <path class="flame-core" d="M32 20 C 35 26, 38 30, 36 35 C 34 39, 30 39, 28 35 C 26 30, 29 26, 32 20 Z" fill="#fff3cf"/>
-                <!-- 蜡身 -->
-                <rect x="27" y="44" width="10" height="36" rx="4" fill="#f6e3c0"/>
-                <path d="M27 46 L 37 46" stroke="#e3c089" stroke-width="1.6"/>
-                <!-- 烛泪 -->
-                <path d="M27 62 q -3 6 0 10" stroke="#f6e3c0" stroke-width="3" stroke-linecap="round" fill="none"/>
+                <path class="flame" d="M32 10 C 37 18, 45 24, 41 34 C 38 42, 26 42, 23 34 C 19 24, 27 18, 32 10 Z" fill="#f4c35f"/>
+                <path class="flame-core" d="M32 21 C 35 26, 38 30, 36 35 C 34 39, 30 39, 28 35 C 26 30, 29 26, 32 21 Z" fill="#fff3cf"/>
+                <rect class="wax" x="27.5" y="42" width="9" height="38" rx="3.5" fill="rgba(255,251,238,0.4)" stroke="#46335c" stroke-width="2"/>
+                <path d="M27.5 47 C 30 49, 34 49, 36.5 47" stroke="#46335c" stroke-width="1.4" fill="none"/>
+                <path d="M27.5 62 C 25 66, 25.5 71, 27.5 76" stroke="#46335c" stroke-width="1.4" fill="none" opacity="0.55"/>
               </svg>
             </button>
           </form>
-          <p class="letter-foot">点一点蜡烛，或者按一下回车</p>
+          <p class="form-hint">点一点蜡烛，或者按一下回车</p>
         </div>
         <p id="example-hint" class="example-hint">比如：今天看到晚霞，想发给一个人</p>
         <p id="guidance" class="guidance hidden">树洞听见了。还想再放一首吗？</p>

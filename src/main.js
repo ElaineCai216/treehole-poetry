@@ -5,23 +5,18 @@ import { randomPoem, randomPoemExcept } from "./poems.js";
 import { renderPoem, scatterPoem, estimateAppearDuration, TIMING } from "./scatter.js";
 import * as audio from "./audio.js";
 import { generatePoem, isAiConfigured } from "./api.js";
-import bg1 from "./assets/backgrounds/bg-1.jpg";
-import bg2 from "./assets/backgrounds/bg-2.jpg";
-import bg3 from "./assets/backgrounds/bg-3.jpg";
-import bg4 from "./assets/backgrounds/bg-4.jpg";
-import bg5 from "./assets/backgrounds/bg-5.jpg";
-import bg6 from "./assets/backgrounds/bg-6.jpg";
+import { initInk } from "./ink.js";
 
 const $ = (sel) => document.querySelector(sel);
 
 const el = {
-  bg: $("#bg"),
+  ink: $("#ink"),
   dust: $("#dust"),
   pulse: $("#pulse"),
   soundToggle: $("#sound-toggle"),
   iconOff: $("#icon-sound-off"),
   iconOn: $("#icon-sound-on"),
-  letter: $("#letter"),
+  sketch: $("#sketch"),
   candle: $("#candle-btn"),
   home: $("#home"),
   poemView: $("#poem-view"),
@@ -47,54 +42,6 @@ const state = {
   scattering: false,
   aiLoading: false,
 };
-
-/* ---------------- 背景轮换 ---------------- */
-const BG_IMAGES = [bg1, bg2, bg3, bg4, bg5, bg6];
-const BG_INTERVAL_MS = 18000;
-let bgIndex = -1;
-
-function showNextBg() {
-  const imgs = el.bg.children;
-  if (!imgs.length) return;
-  const next = (bgIndex + 1) % imgs.length;
-  for (let i = 0; i < imgs.length; i++) imgs[i].classList.remove("active");
-  // 强制重排，保证淡入过渡正常触发
-  imgs[next].style.transition = "none";
-  void imgs[next].offsetWidth;
-  imgs[next].style.transition = "";
-  imgs[next].classList.add("active");
-  bgIndex = next;
-}
-
-function initBg() {
-  for (let i = 0; i < BG_IMAGES.length; i++) {
-    const d = document.createElement("div");
-    d.className = "bg-img";
-    d.style.backgroundImage = `url("${BG_IMAGES[i]}")`;
-    el.bg.appendChild(d);
-  }
-  showNextBg();
-  setInterval(showNextBg, BG_INTERVAL_MS);
-}
-
-/* ---------------- 背景视差 ---------------- */
-function initParallax() {
-  if (reducedMotion) return;
-  let tx = 0;
-  let ty = 0;
-  let cx = 0;
-  let cy = 0;
-  window.addEventListener("pointermove", (e) => {
-    tx = (e.clientX / window.innerWidth - 0.5) * 26;
-    ty = (e.clientY / window.innerHeight - 0.5) * 18;
-  });
-  (function loop() {
-    cx += (tx - cx) * 0.045;
-    cy += (ty - cy) * 0.045;
-    el.bg.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px)`;
-    requestAnimationFrame(loop);
-  })();
-}
 
 /* ---------------- 光尘粒子 ---------------- */
 function initDust(canvas) {
@@ -139,10 +86,10 @@ function initDust(canvas) {
         continue;
       }
       const twinkle = 0.35 + 0.4 * (0.5 + 0.5 * Math.sin(t * p.speed * 2 + p.phase * 3));
-      const alpha = p.warm ? twinkle * 0.8 : twinkle * 0.55;
+      const alpha = p.warm ? twinkle * 0.7 : twinkle * 0.45;
       c.beginPath();
       c.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      c.fillStyle = p.warm ? `rgba(255, 219, 145, ${alpha})` : `rgba(255, 246, 224, ${alpha})`;
+      c.fillStyle = p.warm ? `rgba(217, 154, 63, ${alpha})` : `rgba(255, 251, 238, ${alpha})`;
       c.fill();
     }
     requestAnimationFrame(draw);
@@ -225,17 +172,17 @@ el.form.addEventListener("submit", (e) => {
   if (!text) {
     audio.sfxPop();
     toast("写点什么吧，树洞在听。");
-    el.letter.classList.remove("form-shake");
-    void el.letter.offsetWidth;
-    el.letter.classList.add("form-shake");
+    el.sketch.classList.remove("form-shake");
+    void el.sketch.offsetWidth;
+    el.sketch.classList.add("form-shake");
     el.input.focus();
     return;
   }
 
   audio.sfxSubmit();
   el.candle.classList.add("lit");
-  el.letter.classList.add("sending");
-  el.letter.classList.remove("lifted");
+  el.sketch.classList.add("sending");
+  el.sketch.classList.remove("lifted");
 
   state.moodText = text;
   const mood = detectMood(text);
@@ -245,7 +192,7 @@ el.form.addEventListener("submit", (e) => {
 
   setTimeout(() => {
     el.candle.classList.remove("lit");
-    el.letter.classList.remove("sending");
+    el.sketch.classList.remove("sending");
     showPoem(poem, { source: "local" });
   }, 480);
 });
@@ -278,7 +225,7 @@ el.aiBtn.addEventListener("click", async (e) => {
 
   state.aiLoading = true;
   el.aiBtn.disabled = true;
-  el.aiBtn.innerHTML = '<span>正在写…</span>';
+  el.aiBtn.innerHTML = "<span>正在写…</span>";
 
   try {
     const { poem } = await generatePoem({ moodText: state.moodText, emotion: state.emotion === "unknown" ? "" : state.emotion });
@@ -303,14 +250,14 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// 输入获得焦点：信纸轻轻抬起
+// 输入获得焦点：虚线框轻轻抬起
 el.input.addEventListener("focus", () => {
-  el.letter.classList.add("lifted");
+  el.sketch.classList.add("lifted");
   if (!reducedMotion) audio.sfxHover();
 });
 
 el.input.addEventListener("blur", () => {
-  el.letter.classList.remove("lifted");
+  el.sketch.classList.remove("lifted");
 });
 
 /* ---------------- 音效接线 ---------------- */
@@ -344,8 +291,7 @@ el.soundToggle.addEventListener("click", () => {
 });
 
 /* ---------------- 启动 ---------------- */
-initBg();
-initParallax();
-wireSfx();
+initInk(el.ink, { reducedMotion });
 if (!reducedMotion) initDust(el.dust);
+wireSfx();
 setSoundIcon(false);
