@@ -1,12 +1,14 @@
 // 树洞诗集 · 会动的手绘泼墨涂鸦背景
-// 统一暖黄纸色之上：泼墨团缓慢呼吸、随性线条“一笔一笔”画出又淡去、
-// 星星/叶子/旋涡/小花等涂鸦缓缓漂浮旋转。中心区域刻意保持干净，保证文字清晰。
+// 统一暖黄纸面之上：水彩洗色铺出层次、随性线条“一笔一笔”画出又淡去、
+// 星星/叶子/旋涡等涂鸦漂浮旋转。
+// 中央内容区是“禁区”：线条不会从对话框下面经过，涂鸦碰到禁区会弹走。
 
 const INK = "#46335c"; // 墨色（深紫褐）
 const GOLD = "#d99a3f"; // 金色
-const OLIVE = "#7d8f6a"; // 一点灰绿点缀
 
-const STROKE_COLORS = [INK, INK, INK, GOLD, OLIVE];
+const STROKE_COLORS = [INK, INK, INK, GOLD];
+// 水彩洗色：暖金 / 赭石 / 陶土 / 灰绿 / 灰紫，让纸面不素
+const WASH_COLORS = ["#e8b55f", "#d99a3f", "#c97a52", "#7a8f68", "#8a6f8f", "#e3c06a"];
 
 function hexToRgba(hex, a) {
   const n = parseInt(hex.slice(1), 16);
@@ -19,10 +21,8 @@ const DOODLES = {
     for (let i = 0; i < 10; i++) {
       const r = i % 2 === 0 ? s : s * 0.45;
       const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
-      const px = Math.cos(a) * r;
-      const py = Math.sin(a) * r;
-      if (i === 0) c.moveTo(px, py);
-      else c.lineTo(px, py);
+      if (i === 0) c.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      else c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
     }
     c.closePath();
     c.stroke();
@@ -44,10 +44,8 @@ const DOODLES = {
       const t = i / 44;
       const r = s * 0.14 + s * 0.82 * t;
       const a = t * Math.PI * 3.4;
-      const px = Math.cos(a) * r;
-      const py = Math.sin(a) * r;
-      if (i === 0) c.moveTo(px, py);
-      else c.lineTo(px, py);
+      if (i === 0) c.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      else c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
     }
     c.stroke();
   },
@@ -92,23 +90,35 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
   let lines = [];
   let washes = [];
   let doodles = [];
+  let speckles = [];
+  let keepOut = { x0: 0, y0: 0, x1: 0, y1: 0 };
   const rand = (a, b) => a + Math.random() * (b - a);
 
-  function inCenter(x, y) {
-    return x > w * 0.28 && x < w * 0.72 && y > h * 0.2 && y < h * 0.74;
+  // 中央内容区（对话框/诗）—— 线条与洗色都不许进来，涂鸦碰到会弹走
+  function computeKeepOut() {
+    const m = 26;
+    return {
+      x0: w * 0.27 - m,
+      y0: h * 0.34 - m,
+      x1: w * 0.73 + m,
+      y1: h * 0.68 + m,
+    };
   }
 
-  function pickPos(margin = 30) {
-    for (let i = 0; i < 8; i++) {
-      const x = rand(margin, w - margin);
-      const y = rand(margin, h - margin);
-      if (!inCenter(x, y) || Math.random() < 0.22) return { x, y };
+  function lineHitsRect(pts) {
+    for (const p of pts) {
+      if (p.x > keepOut.x0 && p.x < keepOut.x1 && p.y > keepOut.y0 && p.y < keepOut.y1) return true;
     }
-    return { x: rand(0, w), y: rand(0, h) };
+    return false;
   }
 
-  function spawnLine({ initial = false } = {}) {
-    const { x, y } = pickPos();
+  function washHitsRect(x, y, r) {
+    const dx = Math.max(keepOut.x0 - x, 0, x - keepOut.x1);
+    const dy = Math.max(keepOut.y0 - y, 0, y - keepOut.y1);
+    return dx * dx + dy * dy < r * r;
+  }
+
+  function makeLinePoints(x, y) {
     const angle = rand(0, Math.PI * 2);
     const len = rand(90, Math.min(w, h) * 0.52);
     const n = 26;
@@ -121,6 +131,25 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
         x: x + Math.cos(angle) * len * t + Math.sin(t * 5.5 + phase) * wob,
         y: y + Math.sin(angle) * len * t + Math.cos(t * 4.6 + phase) * wob * 0.8,
       });
+    }
+    return pts;
+  }
+
+  function spawnLine({ initial = false } = {}) {
+    let pts = null;
+    for (let i = 0; i < 14; i++) {
+      const x = rand(0, w);
+      const y = rand(0, h);
+      const candidate = makeLinePoints(x, y);
+      if (!lineHitsRect(candidate)) {
+        pts = candidate;
+        break;
+      }
+    }
+    // 兜底：把线放到左右两侧边缘，保证不穿过中央
+    if (!pts) {
+      const side = Math.random() < 0.5;
+      pts = makeLinePoints(side ? rand(-30, w * 0.16) : rand(w * 0.84, w + 30), rand(0, h));
     }
     lines.push({
       pts,
@@ -136,22 +165,56 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
   }
 
   function spawnWash() {
-    const side = Math.floor(Math.random() * 4);
-    const x = side === 0 ? rand(-0.08, 0.24) * w : side === 1 ? rand(0.76, 1.08) * w : rand(0, w);
-    const y = side === 2 ? rand(-0.08, 0.2) * h : side === 3 ? rand(0.8, 1.08) * h : rand(0, h);
-    washes.push({
-      x,
-      y,
-      r: rand(Math.min(w, h) * 0.16, Math.min(w, h) * 0.34),
-      phase: rand(0, Math.PI * 2),
-      alpha: rand(0.07, 0.14),
-      color: Math.random() < 0.75 ? INK : GOLD,
-    });
-    if (washes.length > 5) washes.shift();
+    for (let i = 0; i < 10; i++) {
+      const side = Math.floor(Math.random() * 4);
+      const x = side === 0 ? rand(-0.06, 0.22) * w : side === 1 ? rand(0.78, 1.06) * w : rand(0, w);
+      const y = side === 2 ? rand(-0.06, 0.2) * h : side === 3 ? rand(0.8, 1.06) * h : rand(0, h);
+      const r = rand(Math.min(w, h) * 0.18, Math.min(w, h) * 0.4);
+      if (!washHitsRect(x, y, r)) {
+        washes.push({
+          x,
+          y,
+          r,
+          phase: rand(0, Math.PI * 2),
+          speed: rand(0.1, 0.22),
+          alpha: rand(0.13, 0.24),
+          color: WASH_COLORS[Math.floor(Math.random() * WASH_COLORS.length)],
+          vx: rand(-0.04, 0.04),
+          vy: rand(-0.03, 0.03),
+        });
+        break;
+      }
+    }
+    if (washes.length > 9) washes.shift();
+  }
+
+  // 纸纤维斑点：极淡的小点铺满纸面，让底色不是纯色
+  function spawnSpeckles() {
+    speckles = [];
+    const count = Math.round((w * h) / 5200);
+    for (let i = 0; i < count; i++) {
+      let x = rand(0, w);
+      let y = rand(0, h);
+      if (x > keepOut.x0 && x < keepOut.x1 && y > keepOut.y0 && y < keepOut.y1) continue;
+      speckles.push({
+        x,
+        y,
+        r: rand(0.4, 1.3),
+        alpha: rand(0.035, 0.085),
+        color: Math.random() < 0.8 ? INK : GOLD,
+      });
+    }
   }
 
   function spawnDoodle() {
-    const { x, y } = pickPos(40);
+    let x = rand(0, w);
+    let y = rand(0, h);
+    // 出生点避开中央
+    for (let i = 0; i < 10; i++) {
+      x = rand(0, w);
+      y = rand(0, h);
+      if (x < keepOut.x0 || x > keepOut.x1 || y < keepOut.y0 || y > keepOut.y1) break;
+    }
     const types = Object.keys(DOODLES);
     doodles.push({
       type: types[Math.floor(Math.random() * types.length)],
@@ -159,13 +222,14 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
       y,
       size: rand(10, 26),
       vy: rand(0.08, 0.28),
+      vx: (Math.random() - 0.5) * 0.12,
       rot: rand(0, Math.PI * 2),
       vr: (Math.random() - 0.5) * 0.004,
       phase: rand(0, Math.PI * 2),
       alpha: rand(0.34, 0.62),
       color: Math.random() < 0.7 ? INK : GOLD,
     });
-    if (doodles.length > 14) doodles.shift();
+    if (doodles.length > 16) doodles.shift();
   }
 
   function drawDoodle(d, t) {
@@ -185,12 +249,16 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
   function drawFrame(t) {
     ctx.clearRect(0, 0, w, h);
 
-    // 泼墨团（缓慢呼吸）
+    // 水彩洗色：缓慢漂移 + 呼吸，让纸面有层次
     for (const ws of washes) {
-      const pulse = 1 + Math.sin(t * 0.0003 + ws.phase) * 0.06;
+      if (!reducedMotion) {
+        ws.x += ws.vx;
+        ws.y += ws.vy;
+      }
+      const pulse = 1 + Math.sin(t * 0.0003 + ws.phase) * 0.07;
       const g = ctx.createRadialGradient(ws.x, ws.y, 0, ws.x, ws.y, ws.r * pulse);
       g.addColorStop(0, hexToRgba(ws.color, ws.alpha * 1.4));
-      g.addColorStop(0.6, hexToRgba(ws.color, ws.alpha * 0.6));
+      g.addColorStop(0.6, hexToRgba(ws.color, ws.alpha * 0.55));
       g.addColorStop(1, hexToRgba(ws.color, 0));
       ctx.fillStyle = g;
       ctx.beginPath();
@@ -198,7 +266,17 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
       ctx.fill();
     }
 
-    // 随性线条：一笔一笔画出来，稍作停留后淡去
+    // 纸纤维斑点
+    for (const sp of speckles) {
+      ctx.globalAlpha = sp.alpha;
+      ctx.fillStyle = sp.color;
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // 随性线条：一笔一笔画出来，稍作停留后淡去（永远不会进入中央禁区）
     for (let i = lines.length - 1; i >= 0; i--) {
       const ln = lines[i];
       if (!reducedMotion) ln.progress += ln.speed;
@@ -226,7 +304,6 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
         else ctx.lineTo(p.x, p.y);
       }
       ctx.stroke();
-      // 手绘感：同一根线再描一遍，略偏移、淡一点
       ctx.globalAlpha = drawAlpha * 0.45;
       ctx.beginPath();
       for (let j = 0; j < count; j++) {
@@ -239,13 +316,24 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
     }
     ctx.globalAlpha = 1;
 
-    // 漂浮涂鸦
+    // 漂浮涂鸦：碰到中央禁区会弹走
     for (let i = doodles.length - 1; i >= 0; i--) {
       const d = doodles[i];
       if (!reducedMotion) {
         d.y -= d.vy;
-        d.x += Math.sin(t * 0.0002 + d.phase) * 0.12;
+        d.x += d.vx + Math.sin(t * 0.0002 + d.phase) * 0.12;
         d.rot += d.vr;
+        // 弹走：不进入中央禁区
+        if (d.x > keepOut.x0 && d.x < keepOut.x1 && d.y > keepOut.y0 && d.y < keepOut.y1) {
+          const fromLeft = d.x < (keepOut.x0 + keepOut.x1) / 2;
+          if (fromLeft) {
+            d.x = keepOut.x0 - 4;
+            d.vx = Math.abs(d.vx) + 0.02;
+          } else {
+            d.x = keepOut.x1 + 4;
+            d.vx = -Math.abs(d.vx) - 0.02;
+          }
+        }
         if (d.y < -40 || d.x < -40 || d.x > w + 40) {
           doodles.splice(i, 1);
           spawnDoodle();
@@ -265,10 +353,12 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    keepOut = computeKeepOut();
     lines = [];
     washes = [];
     doodles = [];
-    for (let i = 0; i < 4; i++) spawnWash();
+    spawnSpeckles();
+    for (let i = 0; i < 10; i++) spawnWash();
     for (let i = 0; i < 11; i++) spawnLine({ initial: reducedMotion });
     for (let i = 0; i < 16; i++) spawnDoodle();
   }

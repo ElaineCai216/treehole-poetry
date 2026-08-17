@@ -17,7 +17,7 @@ function getCtx() {
 
 /* ================= 交互音效 ================= */
 
-function tone({ freq = 440, type = "sine", dur = 0.15, vol = 0.1, delay = 0, slide = 0 } = {}) {
+function tone({ freq = 440, type = "sine", dur = 0.15, vol = 0.1, delay = 0, slide = 0, filter = 0 } = {}) {
   const ac = getCtx();
   if (!ac) return;
   const t0 = ac.currentTime + delay;
@@ -29,7 +29,16 @@ function tone({ freq = 440, type = "sine", dur = 0.15, vol = 0.1, delay = 0, sli
   g.gain.setValueAtTime(0.0001, t0);
   g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  osc.connect(g);
+  let out = osc;
+  if (filter > 0) {
+    const f = ac.createBiquadFilter();
+    f.type = "lowpass";
+    f.frequency.value = filter;
+    f.Q.value = 0.6;
+    osc.connect(f);
+    out = f;
+  }
+  out.connect(g);
   g.connect(ac.destination);
   osc.start(t0);
   osc.stop(t0 + dur + 0.06);
@@ -94,6 +103,46 @@ export function sfxScatter() {
 // 开关：小木塞“啵”
 export function sfxPop() {
   tone({ freq: 340, type: "square", dur: 0.08, vol: 0.05, slide: -140 });
+}
+
+/* ================= 舒缓配乐 ================= */
+// 一段很慢的 C - G - Am - F 和弦循环，轻轻琶音，像睡前哼的小曲
+let musicOn = false;
+let musicTimer = 0;
+
+const MUSIC = [
+  { bass: 130.81, notes: [261.63, 329.63, 392.0] }, // C
+  { bass: 98.0, notes: [246.94, 293.66, 392.0] }, // G
+  { bass: 110.0, notes: [220.0, 261.63, 329.63] }, // Am
+  { bass: 87.31, notes: [174.61, 261.63, 349.23] }, // F
+];
+const CHORD_MS = 4600;
+
+function scheduleMusicLoop(fromTime) {
+  if (!musicOn) return;
+  const ac = ctx;
+  if (!ac) return;
+  let t = fromTime;
+  for (const chord of MUSIC) {
+    tone({ freq: chord.bass, type: "sine", dur: 3.8, vol: 0.05, delay: t - ac.currentTime, filter: 900 });
+    chord.notes.forEach((f, i) => {
+      tone({ freq: f, type: "triangle", dur: 3.0, vol: 0.03, delay: t - ac.currentTime + i * 1.15, filter: 1500 });
+    });
+    t += CHORD_MS / 1000;
+  }
+  musicTimer = setTimeout(() => scheduleMusicLoop(t), CHORD_MS * MUSIC.length + 200);
+}
+
+function startMusic() {
+  if (musicOn) return;
+  musicOn = true;
+  scheduleMusicLoop(ctx.currentTime + 0.3);
+}
+
+function stopMusic() {
+  musicOn = false;
+  clearTimeout(musicTimer);
+  musicTimer = 0;
 }
 
 /* ================= 柔和环境音 ================= */
@@ -180,6 +229,7 @@ export function start() {
 
   nodes = [noise, windFilter, windGain, lfo, lfoGain, breath, breathGain, breathLfo, breathLfoGain];
   enabled = true;
+  startMusic();
   return true;
 }
 
@@ -201,6 +251,7 @@ export function stop() {
   }
   nodes = [];
   enabled = false;
+  stopMusic();
   setTimeout(() => {
     try {
       if (masterGain) masterGain.disconnect();
