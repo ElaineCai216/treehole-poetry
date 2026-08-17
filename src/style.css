@@ -1,20 +1,21 @@
 /* ============================================================
-   树洞诗集 · 暖黄手绘笔触风
-   暖黄色纸感底色 + 一笔一笔可见的画笔笔触，
-   像在阳光下的画纸上慢慢涂抹。文字用温暖的墨色。
+   树洞诗集 · 绘本插画风
+   背景用《Duas in the Dark》绘本原图并随时间轮换，
+   暗角柔光保证文字可读，信纸+蜡烛的寄信意象，
+   到处都是小动效，每次点击都有声音。
    ============================================================ */
 
 :root {
-  --paper: #f9edcf;
-  --paper-soft: #fff7e2;
-  --gold: #e8b55f;
-  --gold-deep: #d99a3f;
-  --gold-soft: #f2d68e;
-  --ink: #5a3c1e;
-  --ink-soft: #7a5a33;
-  --muted: rgba(90, 60, 30, 0.58);
-  --faint: rgba(90, 60, 30, 0.4);
-  --line: rgba(90, 60, 30, 0.2);
+  --cream: #f9edcf;
+  --cream-bright: #fff6e0;
+  --gold: #f6c453;
+  --gold-deep: #e8a74a;
+  --ink-paper: #4a3358;
+  --ink-soft: #6d5380;
+  --muted: rgba(249, 237, 207, 0.72);
+  --faint: rgba(249, 237, 207, 0.55);
+  --line-light: rgba(249, 237, 207, 0.35);
+  --night: #1c1133;
 
   --story: "Yuanti SC", "YouYuan", "幼圆", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   --hand: "Kaiti SC", "STKaiti", "KaiTi", "楷体", "Noto Serif SC", serif;
@@ -34,46 +35,84 @@ body {
 
 body {
   font-family: var(--sans);
-  color: var(--ink);
-  background-color: #f3dcab;
-  background-image:
-    /* 中央柔和的暖光 */
-    radial-gradient(90% 70% at 50% 40%, rgba(255, 250, 232, 0.9) 0%, rgba(255, 250, 232, 0) 62%),
-    /* 左上与右下淡淡的金黄水洗 */
-    radial-gradient(70% 60% at 10% 8%, rgba(238, 196, 120, 0.55) 0%, rgba(238, 196, 120, 0) 70%),
-    radial-gradient(62% 55% at 90% 92%, rgba(235, 180, 105, 0.5) 0%, rgba(235, 180, 105, 0) 70%),
-    linear-gradient(178deg, #faefd2 0%, #f6e2b0 46%, #efcf92 100%);
-  background-attachment: fixed;
+  color: var(--cream);
+  background-color: var(--night);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
-/* 手绘笔触画布（铺在背景上） */
-#brush {
+/* ---------- 轮换的绘本背景 ---------- */
+#bg {
   position: fixed;
-  inset: 0;
+  inset: -4%;
   z-index: 1;
   pointer-events: none;
+  will-change: transform;
 }
 
-/* 画纸颗粒纹理 */
+.bg-img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1.8s ease;
+}
+
+.bg-img.active {
+  opacity: 1;
+  animation: kenburns 24s ease-out both;
+}
+
+/* 暗角 + 整体压暗 + 中央柔光面板：保证文字区分度 */
+#scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background-image:
+    radial-gradient(120% 120% at 50% 42%, rgba(18, 9, 36, 0) 34%, rgba(18, 9, 36, 0.62) 100%),
+    radial-gradient(58% 52% at 50% 46%, rgba(20, 10, 40, 0.52) 0%, rgba(20, 10, 40, 0.1) 55%, rgba(20, 10, 40, 0) 74%),
+    linear-gradient(rgba(20, 10, 40, 0.22), rgba(20, 10, 40, 0.22));
+}
+
+/* 纸纹颗粒 */
 #grain {
   position: fixed;
   inset: 0;
   z-index: 40;
   pointer-events: none;
   opacity: 0.07;
-  mix-blend-mode: multiply;
+  mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* 漂浮的光尘 */
+/* 漂浮光尘 */
 #dust {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: 4;
   pointer-events: none;
+}
+
+/* 散开时的光晕脉冲 */
+#pulse {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 64vmin;
+  height: 64vmin;
+  transform: translate(-50%, -50%) scale(0.35);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 226, 160, 0.55) 0%, rgba(255, 226, 160, 0) 68%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+
+#pulse.go {
+  animation: pulse-out 1.5s ease-out both;
 }
 
 .hidden {
@@ -97,15 +136,16 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
-  color: var(--ink);
+  gap: 10px;
+  color: var(--cream);
   pointer-events: auto;
 }
 
 .brand-icon {
   display: inline-flex;
-  color: var(--gold-deep);
-  filter: drop-shadow(0 1px 2px rgba(255, 255, 255, 0.8));
+  color: var(--gold);
+  filter: drop-shadow(0 0 8px rgba(246, 196, 83, 0.75));
+  animation: sparkle-spin 7s ease-in-out infinite;
 }
 
 .brand-name {
@@ -113,37 +153,42 @@ body {
   font-size: 17px;
   letter-spacing: 0.34em;
   margin-left: 0.1em;
-  color: var(--ink);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  color: var(--cream);
+  text-shadow: 0 2px 6px rgba(10, 4, 22, 0.9), 0 0 18px rgba(246, 196, 83, 0.35);
 }
 
 .icon-btn {
   pointer-events: auto;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  border: 1px solid var(--line);
-  background: rgba(255, 251, 240, 0.72);
-  color: var(--ink-soft);
+  border: 1.5px solid var(--line-light);
+  background: rgba(18, 9, 36, 0.5);
+  color: var(--muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  backdrop-filter: blur(3px);
-  box-shadow: 0 3px 10px rgba(180, 130, 60, 0.16);
-  transition: color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease, transform 0.3s ease;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 6px 18px rgba(10, 4, 22, 0.35);
+  transition: color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease, transform 0.25s ease;
 }
 
 .icon-btn:hover {
-  color: var(--gold-deep);
-  border-color: rgba(217, 154, 63, 0.55);
-  transform: translateY(-1px);
+  color: var(--gold);
+  border-color: rgba(246, 196, 83, 0.7);
+  transform: translateY(-2px) rotate(-4deg);
+  box-shadow: 0 8px 22px rgba(10, 4, 22, 0.4), 0 0 16px rgba(246, 196, 83, 0.35);
+}
+
+.icon-btn:active {
+  transform: translateY(0) scale(0.92);
 }
 
 .icon-btn.on {
-  color: var(--gold-deep);
-  border-color: rgba(217, 154, 63, 0.6);
-  box-shadow: 0 3px 12px rgba(217, 154, 63, 0.4);
+  color: var(--gold);
+  border-color: rgba(246, 196, 83, 0.75);
+  box-shadow: 0 0 20px rgba(246, 196, 83, 0.45);
 }
 
 /* ---------- 主容器 ---------- */
@@ -154,12 +199,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 90px 22px 70px;
+  padding: 96px 22px 72px;
 }
 
 .view {
   width: 100%;
-  max-width: 470px;
+  max-width: 560px;
   text-align: center;
   transition: opacity 0.65s ease;
 }
@@ -170,122 +215,217 @@ body {
   display: block;
 }
 
-/* ---------- 首页 ---------- */
+/* ---------- 首页：一封信 ---------- */
 .tagline {
-  font-family: var(--story);
-  font-size: clamp(0.88rem, 1.6vw, 1rem);
-  letter-spacing: 0.28em;
-  text-indent: 0.28em;
-  color: var(--ink-soft);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
-  margin-bottom: 22px;
+  font-family: var(--hand);
+  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  color: var(--cream-bright);
+  text-shadow: 0 2px 8px rgba(10, 4, 22, 0.9), 0 0 22px rgba(246, 196, 83, 0.4);
+  margin-bottom: 24px;
   animation: fade-up 1.1s ease both;
 }
 
-/* 奶油纸输入卡 */
-.poem-form {
-  display: flex;
-  gap: 10px;
-  max-width: 430px;
+/* 信纸卡片 */
+.letter {
+  position: relative;
+  max-width: 520px;
   margin: 0 auto;
-  animation: fade-up 1.1s 0.12s ease both;
+  background: linear-gradient(172deg, #fdf6e0 0%, #f7e9c8 100%);
+  border-radius: 20px;
+  padding: 30px 30px 18px;
+  box-shadow: 0 30px 60px rgba(8, 4, 18, 0.55), 0 6px 20px rgba(8, 4, 18, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: rotate(-1.2deg);
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.2), box-shadow 0.4s ease;
+  animation: letter-in 0.9s cubic-bezier(0.2, 0.9, 0.3, 1.15) 0.12s both;
 }
 
+.letter.lifted {
+  transform: rotate(-0.6deg) translateY(-4px);
+  box-shadow: 0 36px 70px rgba(8, 4, 18, 0.6), 0 0 0 3px rgba(246, 196, 83, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.letter.sending {
+  transform: rotate(1.5deg) translateY(8px) scale(0.94);
+  opacity: 0;
+  transition: transform 0.55s ease, opacity 0.5s ease;
+  pointer-events: none;
+}
+
+/* 纸胶带 */
+.tape {
+  position: absolute;
+  top: -13px;
+  width: 96px;
+  height: 30px;
+  background: rgba(255, 236, 180, 0.82);
+  border-left: 1px dashed rgba(180, 140, 80, 0.4);
+  border-right: 1px dashed rgba(180, 140, 80, 0.4);
+  box-shadow: 0 4px 10px rgba(8, 4, 18, 0.18);
+  opacity: 0.9;
+}
+
+.tape-1 {
+  left: 6%;
+  transform: rotate(-7deg);
+}
+
+.tape-2 {
+  right: 8%;
+  transform: rotate(5deg);
+}
+
+.letter-title {
+  font-family: var(--hand);
+  font-size: 15px;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  color: var(--ink-soft);
+  margin-bottom: 12px;
+}
+
+.poem-form {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* 手写体输入：只有一条虚线底线，像写在信纸上 */
 #mood-input {
   flex: 1;
   min-width: 0;
-  font-family: var(--story);
-  font-size: 16px;
-  letter-spacing: 0.06em;
-  color: var(--ink);
-  background: rgba(255, 253, 247, 0.92);
-  border: 1.5px solid rgba(217, 154, 63, 0.45);
-  border-radius: 16px;
-  padding: 14px 20px;
+  font-family: var(--hand);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: var(--ink-paper);
+  background: transparent;
+  border: none;
+  border-bottom: 2px dashed rgba(74, 51, 88, 0.4);
+  padding: 10px 4px 12px;
   outline: none;
   caret-color: #c47f2e;
-  box-shadow: 0 10px 24px rgba(180, 130, 60, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transition: box-shadow 0.4s ease, transform 0.3s ease, border-color 0.3s ease;
+  transition: border-color 0.3s ease;
 }
 
 #mood-input::placeholder {
-  color: rgba(90, 60, 30, 0.42);
+  color: rgba(74, 51, 88, 0.4);
+  font-style: italic;
 }
 
 #mood-input:focus {
-  border-color: rgba(217, 154, 63, 0.8);
-  box-shadow: 0 10px 28px rgba(180, 130, 60, 0.3), 0 0 0 4px rgba(232, 181, 95, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transform: translateY(-1px);
+  border-bottom-color: var(--gold-deep);
 }
 
-/* 暖金贴纸按钮 */
-.submit-btn {
-  font-family: var(--story);
-  font-size: 15px;
-  letter-spacing: 0.1em;
-  text-indent: 0.1em;
-  color: #4a2f10;
-  background: linear-gradient(160deg, #fbe2a6 0%, var(--gold) 68%, #e2a94e 100%);
-  border: 1.5px solid rgba(255, 255, 255, 0.75);
-  border-radius: 16px;
-  padding: 0 24px;
-  white-space: nowrap;
+/* 蜡烛：寄出心事 */
+.candle {
+  flex: none;
+  width: 58px;
+  height: 66px;
+  background: none;
+  border: none;
+  padding: 0;
   cursor: pointer;
-  box-shadow: 0 10px 22px rgba(180, 130, 60, 0.35), 0 3px 0 rgba(178, 120, 48, 0.35);
-  transform: rotate(-1deg);
-  transition: transform 0.25s ease, box-shadow 0.3s ease, filter 0.3s ease;
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 6px 12px rgba(8, 4, 18, 0.35));
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.3, 1.4);
+  animation: candle-bob 4.5s ease-in-out infinite;
 }
 
-.submit-btn:hover {
-  transform: rotate(-1deg) translateY(-2px);
-  filter: brightness(1.04);
-  box-shadow: 0 14px 26px rgba(180, 130, 60, 0.4), 0 4px 0 rgba(178, 120, 48, 0.35);
+.candle .flame {
+  animation: flame-flicker 1.6s ease-in-out infinite;
+  transform-origin: 50% 90%;
 }
 
-.submit-btn:active {
-  transform: rotate(-1deg) translateY(1px) scale(0.98);
-  box-shadow: 0 6px 14px rgba(180, 130, 60, 0.35), 0 1px 0 rgba(178, 120, 48, 0.35);
+.candle .flame-core {
+  animation: flame-core 1.6s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+
+.candle:hover {
+  transform: scale(1.16) rotate(-3deg);
+}
+
+.candle:hover .flame {
+  animation-duration: 0.7s;
+}
+
+.candle:active {
+  transform: scale(0.94) rotate(2deg);
+}
+
+.candle.lit .flame {
+  animation: flame-burst 0.7s ease-out both;
+}
+
+.letter-foot {
+  margin-top: 14px;
+  font-family: var(--hand);
+  font-size: 12.5px;
+  letter-spacing: 0.12em;
+  color: rgba(74, 51, 88, 0.55);
 }
 
 .example-hint {
-  margin-top: 16px;
-  font-family: var(--story);
-  font-size: 13px;
-  letter-spacing: 0.05em;
-  color: var(--faint);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  margin-top: 18px;
+  font-family: var(--hand);
+  font-size: 13.5px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-shadow: 0 1px 4px rgba(10, 4, 22, 0.9);
   animation: fade-up 1.1s 0.24s ease both;
 }
 
 .guidance {
-  margin-top: 18px;
+  margin-top: 22px;
   font-family: var(--hand);
-  font-size: 16px;
-  letter-spacing: 0.1em;
-  color: var(--gold-deep);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8), 0 0 16px rgba(255, 255, 255, 0.8);
+  font-size: 17px;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-shadow: 0 2px 8px rgba(10, 4, 22, 0.9), 0 0 24px rgba(246, 196, 83, 0.55);
   animation: fade-up 1.4s ease both;
 }
 
-.form-shake {
-  animation: shake 0.5s ease;
-}
-
-/* ---------- 诗（墨色文字，像写在画纸上） ---------- */
+/* ---------- 诗页 ---------- */
 #poem-view {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
+.doodle {
+  position: absolute;
+  top: 6%;
+  font-size: 24px;
+  color: var(--gold);
+  text-shadow: 0 2px 8px rgba(10, 4, 22, 0.9);
+  animation: doodle-float 5s ease-in-out infinite;
+  opacity: 0.9;
+}
+
+.doodle-left {
+  left: 4%;
+  animation-delay: 0.4s;
+}
+
+.doodle-right {
+  right: 4%;
+  animation-delay: 1.1s;
+}
+
 .poem {
   font-family: var(--hand);
-  font-size: clamp(1.18rem, 2.5vmin + 0.42rem, 1.55rem);
+  font-size: clamp(1.22rem, 2.6vmin + 0.44rem, 1.6rem);
   line-height: 2.25;
   letter-spacing: 0.12em;
-  color: var(--ink);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75), 0 2px 12px rgba(216, 156, 70, 0.35);
+  color: var(--cream-bright);
+  text-shadow:
+    0 2px 4px rgba(8, 4, 18, 0.95),
+    0 0 18px rgba(8, 4, 18, 0.6),
+    0 0 34px rgba(246, 196, 83, 0.4);
   padding: 12px 10px 26px;
+  animation: poem-float 6s ease-in-out infinite;
 }
 
 .poem-line {
@@ -312,53 +452,82 @@ body {
   animation: none;
 }
 
-/* ---------- 操作按钮 ---------- */
+/* 手写文字按钮：没有膏药块，只有字和一条会画出来的线 */
 .actions {
   display: flex;
-  gap: 14px;
+  gap: 34px;
   justify-content: center;
-  margin-top: 4px;
+  margin-top: 2px;
   animation: fade-up 1s 0.5s ease both;
 }
 
-.ghost-btn {
-  font-family: var(--story);
-  font-size: 13.5px;
+.text-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--hand);
+  font-size: 16px;
   letter-spacing: 0.1em;
-  text-indent: 0.1em;
-  color: var(--ink-soft);
-  background: rgba(255, 251, 240, 0.75);
-  border: 1.5px solid var(--line);
-  border-radius: 999px;
-  padding: 9px 22px;
+  color: var(--cream);
+  background: none;
+  border: none;
+  padding: 6px 2px 10px;
   cursor: pointer;
-  backdrop-filter: blur(3px);
-  box-shadow: 0 3px 10px rgba(180, 130, 60, 0.14);
-  transition: color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease, opacity 0.35s ease, transform 0.25s ease;
+  text-shadow: 0 2px 6px rgba(10, 4, 22, 0.9);
+  transition: color 0.3s ease, transform 0.25s ease;
 }
 
-.ghost-btn:hover {
-  color: var(--gold-deep);
-  border-color: rgba(217, 154, 63, 0.55);
-  box-shadow: 0 4px 14px rgba(217, 154, 63, 0.28);
-  transform: translateY(-1px);
+.text-btn svg {
+  color: var(--gold);
+  filter: drop-shadow(0 0 6px rgba(246, 196, 83, 0.6));
 }
 
-.ghost-btn:disabled {
-  opacity: 0.5;
+.text-btn::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  height: 2.5px;
+  border-radius: 3px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+
+.text-btn:hover {
+  color: var(--gold);
+  transform: translateY(-2px) rotate(-1.5deg);
+}
+
+.text-btn:hover::after {
+  transform: scaleX(1);
+}
+
+.text-btn:active {
+  transform: translateY(0) rotate(1deg) scale(0.96);
+}
+
+.text-btn:disabled {
+  opacity: 0.55;
   cursor: default;
-  box-shadow: none;
   transform: none;
 }
 
+.text-btn:disabled::after {
+  transform: scaleX(0);
+}
+
 .poem-hint {
-  margin-top: 20px;
-  font-family: var(--story);
-  font-size: 12px;
+  margin-top: 22px;
+  font-family: var(--hand);
+  font-size: 12.5px;
   letter-spacing: 0.22em;
   text-indent: 0.22em;
   color: var(--faint);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  text-shadow: 0 1px 4px rgba(10, 4, 22, 0.9);
   transition: opacity 0.6s ease;
 }
 
@@ -369,19 +538,19 @@ body {
   bottom: 34px;
   transform: translateX(-50%) translateY(14px);
   z-index: 70;
-  max-width: min(88vw, 420px);
-  padding: 11px 22px;
-  border-radius: 14px;
-  border: 1.5px solid rgba(217, 154, 63, 0.5);
-  background: rgba(255, 253, 247, 0.95);
-  color: var(--ink);
-  font-family: var(--story);
-  font-size: 13.5px;
-  letter-spacing: 0.05em;
+  max-width: min(88vw, 430px);
+  padding: 12px 24px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(246, 196, 83, 0.55);
+  background: rgba(253, 246, 224, 0.96);
+  color: var(--ink-paper);
+  font-family: var(--hand);
+  font-size: 14.5px;
+  letter-spacing: 0.06em;
   text-align: center;
   opacity: 0;
   pointer-events: none;
-  box-shadow: 0 12px 30px rgba(180, 130, 60, 0.28);
+  box-shadow: 0 16px 40px rgba(8, 4, 18, 0.5), 0 4px 14px rgba(8, 4, 18, 0.3);
   transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
@@ -399,6 +568,26 @@ body {
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes letter-in {
+  from {
+    opacity: 0;
+    transform: translateY(26px) rotate(-3deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-1.2deg) translateY(0) scale(1);
+  }
+}
+
+@keyframes kenburns {
+  from {
+    transform: scale(1.02) translate(0, 0);
+  }
+  to {
+    transform: scale(1.12) translate(-1.4%, -1.2%);
   }
 }
 
@@ -428,6 +617,95 @@ body {
   }
 }
 
+@keyframes pulse-out {
+  from {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.55);
+  }
+}
+
+@keyframes flame-flicker {
+  0%, 100% {
+    transform: scale(1, 1) rotate(-2deg);
+    opacity: 0.95;
+  }
+  30% {
+    transform: scale(1.06, 0.94) rotate(2deg);
+  }
+  60% {
+    transform: scale(0.94, 1.06) rotate(-1deg);
+  }
+  80% {
+    transform: scale(1.04, 0.96) rotate(1.5deg);
+  }
+}
+
+@keyframes flame-core {
+  0%, 100% {
+    transform: scale(1, 1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(0.9, 1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes flame-burst {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.55, 1.35);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.7, 0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes candle-bob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes poem-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes doodle-float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(8deg);
+  }
+}
+
+@keyframes sparkle-spin {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(20deg) scale(1.12);
+  }
+}
+
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-7px); }
@@ -445,15 +723,21 @@ body {
     font-size: 15px;
     letter-spacing: 0.26em;
   }
-  .poem-form {
-    gap: 8px;
+  .letter {
+    padding: 24px 20px 16px;
+  }
+  .tape {
+    width: 74px;
+    height: 24px;
   }
   #mood-input {
-    font-size: 15px;
-    padding: 13px 16px;
+    font-size: 16px;
   }
-  .submit-btn {
-    padding: 0 16px;
+  .candle {
+    transform: scale(0.9);
+  }
+  .actions {
+    gap: 24px;
   }
   .poem {
     line-height: 2.15;

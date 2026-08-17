@@ -5,15 +5,24 @@ import { randomPoem, randomPoemExcept } from "./poems.js";
 import { renderPoem, scatterPoem, estimateAppearDuration, TIMING } from "./scatter.js";
 import * as audio from "./audio.js";
 import { generatePoem, isAiConfigured } from "./api.js";
+import bg1 from "./assets/backgrounds/bg-1.jpg";
+import bg2 from "./assets/backgrounds/bg-2.jpg";
+import bg3 from "./assets/backgrounds/bg-3.jpg";
+import bg4 from "./assets/backgrounds/bg-4.jpg";
+import bg5 from "./assets/backgrounds/bg-5.jpg";
+import bg6 from "./assets/backgrounds/bg-6.jpg";
 
 const $ = (sel) => document.querySelector(sel);
 
 const el = {
+  bg: $("#bg"),
   dust: $("#dust"),
-  brush: $("#brush"),
+  pulse: $("#pulse"),
   soundToggle: $("#sound-toggle"),
   iconOff: $("#icon-sound-off"),
   iconOn: $("#icon-sound-on"),
+  letter: $("#letter"),
+  candle: $("#candle-btn"),
   home: $("#home"),
   poemView: $("#poem-view"),
   form: $("#poem-form"),
@@ -39,14 +48,61 @@ const state = {
   aiLoading: false,
 };
 
+/* ---------------- 背景轮换 ---------------- */
+const BG_IMAGES = [bg1, bg2, bg3, bg4, bg5, bg6];
+const BG_INTERVAL_MS = 18000;
+let bgIndex = -1;
+
+function showNextBg() {
+  const imgs = el.bg.children;
+  if (!imgs.length) return;
+  const next = (bgIndex + 1) % imgs.length;
+  for (let i = 0; i < imgs.length; i++) imgs[i].classList.remove("active");
+  // 强制重排，保证淡入过渡正常触发
+  imgs[next].style.transition = "none";
+  void imgs[next].offsetWidth;
+  imgs[next].style.transition = "";
+  imgs[next].classList.add("active");
+  bgIndex = next;
+}
+
+function initBg() {
+  for (let i = 0; i < BG_IMAGES.length; i++) {
+    const d = document.createElement("div");
+    d.className = "bg-img";
+    d.style.backgroundImage = `url("${BG_IMAGES[i]}")`;
+    el.bg.appendChild(d);
+  }
+  showNextBg();
+  setInterval(showNextBg, BG_INTERVAL_MS);
+}
+
+/* ---------------- 背景视差 ---------------- */
+function initParallax() {
+  if (reducedMotion) return;
+  let tx = 0;
+  let ty = 0;
+  let cx = 0;
+  let cy = 0;
+  window.addEventListener("pointermove", (e) => {
+    tx = (e.clientX / window.innerWidth - 0.5) * 26;
+    ty = (e.clientY / window.innerHeight - 0.5) * 18;
+  });
+  (function loop() {
+    cx += (tx - cx) * 0.045;
+    cy += (ty - cy) * 0.045;
+    el.bg.style.transform = `translate(${cx.toFixed(1)}px, ${cy.toFixed(1)}px)`;
+    requestAnimationFrame(loop);
+  })();
+}
+
 /* ---------------- 光尘粒子 ---------------- */
 function initDust(canvas) {
-  const ctx = canvas.getContext("2d");
+  const c = canvas.getContext("2d");
   let w = 0;
   let h = 0;
   let dpr = 1;
   let particles = [];
-  let raf = 0;
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -56,15 +112,15 @@ function initDust(canvas) {
     canvas.height = Math.floor(h * dpr);
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   function makeParticle(initial) {
     return {
       x: Math.random() * w,
       y: initial ? Math.random() * h : h + 10,
-      r: 0.5 + Math.random() * 1.7,
-      vy: 0.04 + Math.random() * 0.16,
+      r: 0.5 + Math.random() * 1.8,
+      vy: 0.05 + Math.random() * 0.18,
       vx: (Math.random() - 0.5) * 0.12,
       phase: Math.random() * Math.PI * 2,
       speed: 0.004 + Math.random() * 0.012,
@@ -72,12 +128,8 @@ function initDust(canvas) {
     };
   }
 
-  function spawn() {
-    if (particles.length < 42) particles.push(makeParticle(false));
-  }
-
   function draw(t) {
-    ctx.clearRect(0, 0, w, h);
+    c.clearRect(0, 0, w, h);
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       p.y -= p.vy;
@@ -87,118 +139,19 @@ function initDust(canvas) {
         continue;
       }
       const twinkle = 0.35 + 0.4 * (0.5 + 0.5 * Math.sin(t * p.speed * 2 + p.phase * 3));
-      const alpha = p.warm ? twinkle * 0.75 : twinkle * 0.5;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.warm ? `rgba(214, 150, 66, ${alpha})` : `rgba(255, 250, 232, ${alpha})`;
-      ctx.fill();
+      const alpha = p.warm ? twinkle * 0.8 : twinkle * 0.55;
+      c.beginPath();
+      c.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      c.fillStyle = p.warm ? `rgba(255, 219, 145, ${alpha})` : `rgba(255, 246, 224, ${alpha})`;
+      c.fill();
     }
-    raf = requestAnimationFrame(draw);
-  }
-
-  function tick(ts) {
-    spawn();
-    draw(ts);
+    requestAnimationFrame(draw);
   }
 
   window.addEventListener("resize", resize);
   resize();
-  particles = Array.from({ length: 36 }, () => makeParticle(true));
-  raf = requestAnimationFrame(tick);
-
-  return () => cancelAnimationFrame(raf);
-}
-
-/* ---------------- 手绘笔触背景 ---------------- */
-// 用一串串粗细不均、带抖动的小圆点模拟“一笔一笔”涂上去的笔触
-function initBrush(canvas) {
-  if (!canvas || !canvas.getContext) return;
-  const ctx = canvas.getContext("2d");
-  let w = 0;
-  let h = 0;
-  let dpr = 1;
-
-  const rand = (a, b) => a + Math.random() * (b - a);
-  const COLORS = ["#eecb7e", "#f3d284", "#e6b95f", "#f6dfa4", "#dca54c", "#edc470", "#e7bd6b", "#f0cf8f", "#e0ae55", "#f4d995"];
-
-  function stroke(x, y, len, angle, width, alpha) {
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-    ctx.fillStyle = color;
-    ctx.globalAlpha = alpha;
-    const steps = 26;
-    for (let i = 0; i < steps; i++) {
-      const t = i / (steps - 1);
-      const wob = Math.sin(t * 9 + angle * 7) * width * 0.5;
-      const px = x + Math.cos(angle) * len * t;
-      const py = y + Math.sin(angle) * len * t + wob;
-      const r = width * (0.35 + 0.65 * Math.abs(Math.sin(t * 5.1 + angle))) + 3;
-      ctx.beginPath();
-      ctx.arc(px, py, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  function paint() {
-    ctx.clearRect(0, 0, w, h);
-
-    // 几条很淡的大笔触，像先铺的底色
-    for (let i = 0; i < 5; i++) {
-      stroke(
-        rand(-w * 0.1, w * 1.1),
-        rand(-h * 0.1, h * 1.1),
-        rand(420, 820),
-        rand(-0.5, 0.5),
-        rand(110, 190),
-        rand(0.025, 0.05)
-      );
-    }
-
-    // 主体笔触：中心稍稀、边缘密一些
-    const count = Math.round((w * h) / 18000);
-    for (let i = 0; i < count; i++) {
-      let x = rand(0, w);
-      let y = rand(0, h);
-      // 中央区域（内容所在）少画一些，保证文字清晰
-      const inCenter =
-        x > w * 0.24 && x < w * 0.76 && y > h * 0.22 && y < h * 0.78;
-      if (inCenter && Math.random() < 0.72) {
-        x = Math.random() < 0.5 ? rand(-30, w * 0.16) : rand(w * 0.84, w + 30);
-        y = rand(0, h);
-      }
-      stroke(
-        x,
-        y,
-        rand(130, 420),
-        rand(-Math.PI, Math.PI),
-        rand(24, 80),
-        rand(0.16, 0.28)
-      );
-    }
-
-    // 角落里几笔更明显的深金黄，增加手绘感
-    for (let i = 0; i < 10; i++) {
-      const corner = i % 4;
-      const x = corner % 2 === 0 ? rand(-20, w * 0.22) : rand(w * 0.78, w + 20);
-      const y = corner < 2 ? rand(-20, h * 0.24) : rand(h * 0.76, h + 20);
-      stroke(x, y, rand(160, 340), rand(-1.2, 1.2), rand(30, 62), rand(0.22, 0.34));
-    }
-  }
-
-  function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    w = window.innerWidth;
-    h = window.innerHeight;
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    paint();
-  }
-
-  window.addEventListener("resize", resize);
-  resize();
+  particles = Array.from({ length: 40 }, () => makeParticle(true));
+  requestAnimationFrame(draw);
 }
 
 /* ---------------- Toast ---------------- */
@@ -236,12 +189,21 @@ function showPoem(poem, { source = "local" } = {}) {
   }, total);
 }
 
+function firePulse() {
+  const p = el.pulse;
+  p.classList.remove("go");
+  void p.offsetWidth;
+  p.classList.add("go");
+}
+
 function scatterAndReturn() {
   if (state.scattering) return;
   state.scattering = true;
   state.token += 1;
 
   el.hint.style.opacity = "0";
+  audio.sfxScatter();
+  firePulse();
   const dur = scatterPoem(el.poem, { reducedMotion });
 
   setTimeout(() => {
@@ -261,33 +223,44 @@ el.form.addEventListener("submit", (e) => {
   e.preventDefault();
   const text = el.input.value.trim();
   if (!text) {
-    toast("说点什么吧，树洞在听。");
-    el.form.classList.remove("form-shake");
-    void el.form.offsetWidth;
-    el.form.classList.add("form-shake");
+    audio.sfxPop();
+    toast("写点什么吧，树洞在听。");
+    el.letter.classList.remove("form-shake");
+    void el.letter.offsetWidth;
+    el.letter.classList.add("form-shake");
     el.input.focus();
     return;
   }
 
-  el.form.classList.remove("form-shake");
+  audio.sfxSubmit();
+  el.candle.classList.add("lit");
+  el.letter.classList.add("sending");
+  el.letter.classList.remove("lifted");
+
   state.moodText = text;
   const mood = detectMood(text);
   state.emotion = mood.emotion;
   const poem = randomPoem(state.emotion === "unknown" ? undefined : state.emotion);
   el.input.value = "";
-  showPoem(poem, { source: "local" });
+
+  setTimeout(() => {
+    el.candle.classList.remove("lit");
+    el.letter.classList.remove("sending");
+    showPoem(poem, { source: "local" });
+  }, 480);
 });
 
-// 点击屏幕任意处提前散开（按钮通过 stopPropagation 交给自己处理）
+// 点画面任意处提前散开（按钮通过 stopPropagation 交给自己）
 document.addEventListener("click", (e) => {
   if (state.view !== "poem" || state.scattering || state.aiLoading) return;
-  if (e.target.closest(".actions") || e.target.closest(".topbar")) return;
+  if (e.target.closest(".actions")) return;
   scatterAndReturn();
 });
 
 el.againBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   if (state.view !== "poem" || state.scattering || state.aiLoading) return;
+  audio.sfxAgain();
   const poem = randomPoemExcept(state.emotion === "unknown" ? undefined : state.emotion, state.currentPoem);
   showPoem(poem, { source: "local" });
 });
@@ -298,13 +271,14 @@ el.aiBtn.addEventListener("click", async (e) => {
 
   if (!isAiConfigured()) {
     toast("AI 写诗还没接好，先让本地的小诗陪你");
+    audio.sfxAgain();
     el.againBtn.click();
     return;
   }
 
   state.aiLoading = true;
   el.aiBtn.disabled = true;
-  el.aiBtn.textContent = "正在写…";
+  el.aiBtn.innerHTML = '<span>正在写…</span>';
 
   try {
     const { poem } = await generatePoem({ moodText: state.moodText, emotion: state.emotion === "unknown" ? "" : state.emotion });
@@ -313,11 +287,12 @@ el.aiBtn.addEventListener("click", async (e) => {
     }
   } catch {
     toast("树洞暂时连不上远方，先让本地的小诗陪你");
+    audio.sfxAgain();
     if (state.view === "poem") el.againBtn.click();
   } finally {
     state.aiLoading = false;
     el.aiBtn.disabled = false;
-    el.aiBtn.textContent = "让 AI 写";
+    el.aiBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true"><path d="M12 3 L14 9 L20 11 L14 13 L12 19 L10 13 L4 11 L10 9 Z" fill="currentColor"/></svg><span>让 AI 写</span>';
   }
 });
 
@@ -328,6 +303,32 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// 输入获得焦点：信纸轻轻抬起
+el.input.addEventListener("focus", () => {
+  el.letter.classList.add("lifted");
+  if (!reducedMotion) audio.sfxHover();
+});
+
+el.input.addEventListener("blur", () => {
+  el.letter.classList.remove("lifted");
+});
+
+/* ---------------- 音效接线 ---------------- */
+function wireSfx() {
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("button, .candle, .text-btn");
+    if (!t) return;
+    if (t.id === "sound-toggle") return; // 由自己的处理函数播放“啵”
+    if (t.id === "candle-btn") return; // 由表单提交播放风铃
+    audio.sfxClick();
+  });
+  document.querySelectorAll("button, .candle").forEach((b) => {
+    b.addEventListener("pointerenter", () => {
+      if (!b.disabled && !reducedMotion) audio.sfxHover();
+    });
+  });
+}
+
 /* ---------------- 环境音 ---------------- */
 function setSoundIcon(on) {
   el.iconOff.classList.toggle("hidden", on);
@@ -337,11 +338,14 @@ function setSoundIcon(on) {
 }
 
 el.soundToggle.addEventListener("click", () => {
+  audio.sfxPop();
   const on = audio.toggle();
   setSoundIcon(on);
 });
 
 /* ---------------- 启动 ---------------- */
-initBrush(el.brush);
+initBg();
+initParallax();
+wireSfx();
 if (!reducedMotion) initDust(el.dust);
 setSoundIcon(false);
