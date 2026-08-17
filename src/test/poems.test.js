@@ -2,10 +2,10 @@ import { describe, it, expect } from "vitest";
 import POEMS, { EMOTION_IDS, allPoems, randomPoem, randomPoemExcept } from "../poems.js";
 
 describe("本地诗库", () => {
-  it("包含 8 类情绪，每类至少 8 首", () => {
+  it("包含 8 类情绪，每类至少 15 首", () => {
     expect(EMOTION_IDS.length).toBe(8);
     for (const id of EMOTION_IDS) {
-      expect(POEMS[id].length, `${id} 诗库数量`).toBeGreaterThanOrEqual(8);
+      expect(POEMS[id].length, `${id} 诗库数量`).toBeGreaterThanOrEqual(15);
     }
   });
 

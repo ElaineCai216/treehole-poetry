@@ -221,10 +221,10 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
       x,
       y,
       size: rand(10, 26),
-      vy: rand(0.08, 0.28),
-      vx: (Math.random() - 0.5) * 0.12,
+      vy: rand(0.1, 0.3),
+      vx: (Math.random() - 0.5) * 0.06,
       rot: rand(0, Math.PI * 2),
-      vr: (Math.random() - 0.5) * 0.004,
+      vr: (Math.random() - 0.5) * 0.0016,
       phase: rand(0, Math.PI * 2),
       alpha: rand(0.34, 0.62),
       color: Math.random() < 0.7 ? INK : GOLD,
@@ -235,11 +235,11 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
   function drawDoodle(d, t) {
     ctx.save();
     ctx.translate(d.x, d.y);
-    ctx.rotate(d.rot + Math.sin(t * 0.0004 + d.phase) * 0.2);
+    ctx.rotate(d.rot + Math.sin(t * 0.0004 + d.phase) * 0.05);
     ctx.globalAlpha = d.alpha;
     ctx.strokeStyle = d.color;
     ctx.fillStyle = d.color;
-    ctx.lineWidth = 1.6;
+    ctx.lineWidth = 1.8;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     DOODLES[d.type](ctx, d.size);
@@ -249,11 +249,21 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
   function drawFrame(t) {
     ctx.clearRect(0, 0, w, h);
 
-    // 水彩洗色：缓慢漂移 + 呼吸，让纸面有层次
+    // 水彩洗色：缓慢漂移 + 呼吸；漂进中央禁区会被推出去
     for (const ws of washes) {
       if (!reducedMotion) {
         ws.x += ws.vx;
         ws.y += ws.vy;
+        const dx = Math.max(keepOut.x0 - ws.x, 0, ws.x - keepOut.x1);
+        const dy = Math.max(keepOut.y0 - ws.y, 0, ws.y - keepOut.y1);
+        if (dx * dx + dy * dy < ws.r * ws.r * 0.9) {
+          const cx = (keepOut.x0 + keepOut.x1) / 2;
+          const cy = (keepOut.y0 + keepOut.y1) / 2;
+          if (ws.x < cx) ws.x = keepOut.x0 - ws.r * 0.4;
+          else ws.x = keepOut.x1 + ws.r * 0.4;
+          if (ws.y < cy) ws.y = keepOut.y0 - ws.r * 0.4;
+          else ws.y = keepOut.y1 + ws.r * 0.4;
+        }
       }
       const pulse = 1 + Math.sin(t * 0.0003 + ws.phase) * 0.07;
       const g = ctx.createRadialGradient(ws.x, ws.y, 0, ws.x, ws.y, ws.r * pulse);
@@ -304,15 +314,6 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
         else ctx.lineTo(p.x, p.y);
       }
       ctx.stroke();
-      ctx.globalAlpha = drawAlpha * 0.45;
-      ctx.beginPath();
-      for (let j = 0; j < count; j++) {
-        const p = ln.pts[j];
-        const off = Math.sin(j * 2.3 + ln.phase) * 1.2;
-        if (j === 0) ctx.moveTo(p.x + off, p.y - off * 0.6);
-        else ctx.lineTo(p.x + off, p.y - off * 0.6);
-      }
-      ctx.stroke();
     }
     ctx.globalAlpha = 1;
 
@@ -321,7 +322,7 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
       const d = doodles[i];
       if (!reducedMotion) {
         d.y -= d.vy;
-        d.x += d.vx + Math.sin(t * 0.0002 + d.phase) * 0.12;
+        d.x += d.vx;
         d.rot += d.vr;
         // 弹走：不进入中央禁区
         if (d.x > keepOut.x0 && d.x < keepOut.x1 && d.y > keepOut.y0 && d.y < keepOut.y1) {
