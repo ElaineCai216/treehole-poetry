@@ -10,6 +10,7 @@ const $ = (sel) => document.querySelector(sel);
 
 const el = {
   dust: $("#dust"),
+  brush: $("#brush"),
   soundToggle: $("#sound-toggle"),
   iconOff: $("#icon-sound-off"),
   iconOn: $("#icon-sound-on"),
@@ -89,7 +90,7 @@ function initDust(canvas) {
       const alpha = p.warm ? twinkle * 0.75 : twinkle * 0.5;
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = p.warm ? `rgba(252, 224, 160, ${alpha})` : `rgba(185, 163, 216, ${alpha})`;
+      ctx.fillStyle = p.warm ? `rgba(214, 150, 66, ${alpha})` : `rgba(255, 250, 232, ${alpha})`;
       ctx.fill();
     }
     raf = requestAnimationFrame(draw);
@@ -108,33 +109,96 @@ function initDust(canvas) {
   return () => cancelAnimationFrame(raf);
 }
 
-/* ---------------- 星空 ---------------- */
-function initStars(container) {
-  if (!container) return;
-  const frag = document.createDocumentFragment();
-  const count = 46;
-  for (let i = 0; i < count; i++) {
-    const s = document.createElement("i");
-    s.className = "star";
-    const size = Math.random() < 0.16 ? 2.4 + Math.random() * 1.8 : 1 + Math.random() * 1.5;
-    s.style.left = `${(Math.random() * 100).toFixed(2)}%`;
-    s.style.top = `${(Math.random() * 60).toFixed(2)}%`;
-    s.style.width = `${size.toFixed(1)}px`;
-    s.style.height = `${size.toFixed(1)}px`;
-    s.style.opacity = (0.25 + Math.random() * 0.6).toFixed(2);
-    s.style.animationDelay = `${(Math.random() * 6).toFixed(2)}s`;
-    s.style.animationDuration = `${(3 + Math.random() * 5).toFixed(2)}s`;
-    frag.appendChild(s);
+/* ---------------- 手绘笔触背景 ---------------- */
+// 用一串串粗细不均、带抖动的小圆点模拟“一笔一笔”涂上去的笔触
+function initBrush(canvas) {
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext("2d");
+  let w = 0;
+  let h = 0;
+  let dpr = 1;
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const COLORS = ["#eecb7e", "#f3d284", "#e6b95f", "#f6dfa4", "#dca54c", "#edc470", "#e7bd6b", "#f0cf8f", "#e0ae55", "#f4d995"];
+
+  function stroke(x, y, len, angle, width, alpha) {
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    ctx.fillStyle = color;
+    ctx.globalAlpha = alpha;
+    const steps = 26;
+    for (let i = 0; i < steps; i++) {
+      const t = i / (steps - 1);
+      const wob = Math.sin(t * 9 + angle * 7) * width * 0.5;
+      const px = x + Math.cos(angle) * len * t;
+      const py = y + Math.sin(angle) * len * t + wob;
+      const r = width * (0.35 + 0.65 * Math.abs(Math.sin(t * 5.1 + angle))) + 3;
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
-  for (let i = 0; i < 4; i++) {
-    const sp = document.createElement("i");
-    sp.className = "star sparkle";
-    sp.style.left = `${(5 + Math.random() * 85).toFixed(1)}%`;
-    sp.style.top = `${(4 + Math.random() * 42).toFixed(1)}%`;
-    sp.style.animationDelay = `${(Math.random() * 4).toFixed(2)}s`;
-    frag.appendChild(sp);
+
+  function paint() {
+    ctx.clearRect(0, 0, w, h);
+
+    // 几条很淡的大笔触，像先铺的底色
+    for (let i = 0; i < 5; i++) {
+      stroke(
+        rand(-w * 0.1, w * 1.1),
+        rand(-h * 0.1, h * 1.1),
+        rand(420, 820),
+        rand(-0.5, 0.5),
+        rand(110, 190),
+        rand(0.025, 0.05)
+      );
+    }
+
+    // 主体笔触：中心稍稀、边缘密一些
+    const count = Math.round((w * h) / 18000);
+    for (let i = 0; i < count; i++) {
+      let x = rand(0, w);
+      let y = rand(0, h);
+      // 中央区域（内容所在）少画一些，保证文字清晰
+      const inCenter =
+        x > w * 0.24 && x < w * 0.76 && y > h * 0.22 && y < h * 0.78;
+      if (inCenter && Math.random() < 0.72) {
+        x = Math.random() < 0.5 ? rand(-30, w * 0.16) : rand(w * 0.84, w + 30);
+        y = rand(0, h);
+      }
+      stroke(
+        x,
+        y,
+        rand(130, 420),
+        rand(-Math.PI, Math.PI),
+        rand(24, 80),
+        rand(0.16, 0.28)
+      );
+    }
+
+    // 角落里几笔更明显的深金黄，增加手绘感
+    for (let i = 0; i < 10; i++) {
+      const corner = i % 4;
+      const x = corner % 2 === 0 ? rand(-20, w * 0.22) : rand(w * 0.78, w + 20);
+      const y = corner < 2 ? rand(-20, h * 0.24) : rand(h * 0.76, h + 20);
+      stroke(x, y, rand(160, 340), rand(-1.2, 1.2), rand(30, 62), rand(0.22, 0.34));
+    }
   }
-  container.appendChild(frag);
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    paint();
+  }
+
+  window.addEventListener("resize", resize);
+  resize();
 }
 
 /* ---------------- Toast ---------------- */
@@ -278,8 +342,6 @@ el.soundToggle.addEventListener("click", () => {
 });
 
 /* ---------------- 启动 ---------------- */
-if (!reducedMotion) {
-  initDust(el.dust);
-  initStars($("#stars"));
-}
+initBrush(el.brush);
+if (!reducedMotion) initDust(el.dust);
 setSoundIcon(false);
