@@ -304,7 +304,21 @@ initManage({
     manageOpen = false;
   },
 });
-initInk(el.ink, { reducedMotion });
+const ink = initInk(el.ink, { reducedMotion });
 if (!reducedMotion) initDust(el.dust);
 wireSfx();
 setSoundIcon(false);
+
+// 点空白处：种一个新涂鸦 + 一圈光晕反馈
+if (!reducedMotion) {
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("button, input, a, textarea, select, label")) return;
+    ink.spawnAt(e.clientX, e.clientY);
+    const glow = document.createElement("div");
+    glow.className = "click-glow";
+    glow.style.left = `${e.clientX}px`;
+    glow.style.top = `${e.clientY}px`;
+    glow.addEventListener("animationend", () => glow.remove());
+    document.body.appendChild(glow);
+  });
+}

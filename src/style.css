@@ -96,6 +96,21 @@ body {
   animation: pulse-out 1.5s ease-out both;
 }
 
+/* 点击空白处：光晕反馈 */
+.click-glow {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 70px;
+  height: 70px;
+  margin: -35px 0 0 -35px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 181, 95, 0.55) 0%, rgba(232, 181, 95, 0) 70%);
+  pointer-events: none;
+  z-index: 15;
+  animation: click-glow-out 0.6s ease-out forwards;
+}
+
 .hidden {
   display: none !important;
 }
@@ -577,6 +592,17 @@ body {
   to {
     opacity: 0;
     transform: translate(-50%, -50%) scale(1.55);
+  }
+}
+
+@keyframes click-glow-out {
+  from {
+    opacity: 0.9;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
   }
 }
 
