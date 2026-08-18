@@ -312,6 +312,7 @@ setSoundIcon(false);
 // 点空白处：种一个新涂鸦 + 一圈光晕反馈
 if (!reducedMotion) {
   document.addEventListener("click", (e) => {
+    if (manageOpen) return; // 诗库管理页打开时不触发
     if (e.target.closest("button, input, a, textarea, select, label")) return;
     ink.spawnAt(e.clientX, e.clientY);
     const glow = document.createElement("div");
