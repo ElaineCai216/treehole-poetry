@@ -206,15 +206,12 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
     }
   }
 
-  function spawnDoodle() {
-    let x = rand(0, w);
-    let y = rand(0, h);
-    // 出生点避开中央
-    for (let i = 0; i < 10; i++) {
-      x = rand(0, w);
-      y = rand(0, h);
-      if (x < keepOut.x0 || x > keepOut.x1 || y < keepOut.y0 || y > keepOut.y1) break;
-    }
+  function spawnDoodle({ initial = false, x: atX, y: atY, ambient = true } = {}) {
+    // 首屏铺满画面，之后都从底部边缘飘入；点击互动可以指定精确出生点
+    // ambient=true 的涂鸦飘出画面后会自动补一个新的，维持固定数量；
+    // 点击生成的（ambient=false）飘走就飘走，不补，不计入这个固定数量
+    const x = atX ?? rand(0, w);
+    const y = atY ?? (initial ? rand(0, h) : h + rand(10, 40));
     const types = Object.keys(DOODLES);
     doodles.push({
       type: types[Math.floor(Math.random() * types.length)],
@@ -227,8 +224,8 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
       phase: rand(0, Math.PI * 2),
       alpha: rand(0.34, 0.62),
       color: Math.random() < 0.7 ? INK : GOLD,
+      ambient,
     });
-    if (doodles.length > 16) doodles.shift();
   }
 
   function drawDoodle(d, t) {
@@ -317,26 +314,15 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
     }
     ctx.globalAlpha = 1;
 
-    // 漂浮涂鸦：碰到中央禁区会弹走
+    // 漂浮涂鸦：直接穿过画面，不避让中央
     for (let i = doodles.length - 1; i >= 0; i--) {
       const d = doodles[i];
       if (!reducedMotion) {
         d.y -= d.vy;
         d.x += d.vx;
-        // 弹走：不进入中央禁区
-        if (d.x > keepOut.x0 && d.x < keepOut.x1 && d.y > keepOut.y0 && d.y < keepOut.y1) {
-          const fromLeft = d.x < (keepOut.x0 + keepOut.x1) / 2;
-          if (fromLeft) {
-            d.x = keepOut.x0 - 4;
-            d.vx = Math.abs(d.vx) + 0.02;
-          } else {
-            d.x = keepOut.x1 + 4;
-            d.vx = -Math.abs(d.vx) - 0.02;
-          }
-        }
         if (d.y < -40 || d.x < -40 || d.x > w + 40) {
           doodles.splice(i, 1);
-          spawnDoodle();
+          if (d.ambient) spawnDoodle(); // 只补固定数量里的那份，点出来的飘走就没了
           continue;
         }
       }
@@ -360,7 +346,7 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
     spawnSpeckles();
     for (let i = 0; i < 10; i++) spawnWash();
     for (let i = 0; i < 11; i++) spawnLine({ initial: reducedMotion });
-    for (let i = 0; i < 16; i++) spawnDoodle();
+    for (let i = 0; i < 16; i++) spawnDoodle({ initial: true });
   }
 
   function loop(now) {
@@ -375,4 +361,12 @@ export function initInk(canvas, { reducedMotion = false } = {}) {
   } else {
     requestAnimationFrame(loop);
   }
+
+  // 点击互动：在指定坐标生成一个新涂鸦，不计入自动生成的固定数量
+  return {
+    spawnAt(x, y) {
+      spawnDoodle({ x, y, ambient: false });
+      if (reducedMotion) drawFrame(0);
+    },
+  };
 }
